@@ -38,15 +38,17 @@ static int getCornerHeight(int x, int y, int i, int dir,
 	
 	// Combine region and area codes in order to prevent
 	// border vertices which are in between two areas to be removed.
-	regs[0] = chf.spans[i].reg | (chf.areas[i] << 16);
+	// 组合region和area代码，以防止两个areas之间的边界顶点被删除。
+	regs[0] = chf.spans[i].reg | (chf.areas[i] << 16);         //高16位是area标记，低16位是region ID。
 	
-	//得到，序号i的span的y值与序号i的span相邻的三个span（右手坐标系的右手法则的旋转方向）的y值，中的最大值。
+	// 得到，序号i的OpenSpan的y值与序号i的OpenSpan相邻的三个OpenSpan（右手坐标系的右手法则的旋转方向）的y值，中的最大值。
+	// 比如：dir的方向为下，则三个相邻的OpenSpan为（下，右下，右）。
 	if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
 	{
 		const int ax = x + rcGetDirOffsetX(dir);
 		const int ay = y + rcGetDirOffsetY(dir);
 		const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dir);
-		const rcCompactSpan& as = chf.spans[ai];
+		const rcCompactSpan& as = chf.spans[ai];         //下
 		ch = rcMax(ch, (int)as.y);
 		regs[1] = chf.spans[ai].reg | (chf.areas[ai] << 16);
 		if (rcGetCon(as, dirp) != RC_NOT_CONNECTED)
@@ -54,7 +56,7 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			const int ax2 = ax + rcGetDirOffsetX(dirp);
 			const int ay2 = ay + rcGetDirOffsetY(dirp);
 			const int ai2 = (int)chf.cells[ax2+ay2*chf.width].index + rcGetCon(as, dirp);
-			const rcCompactSpan& as2 = chf.spans[ai2];
+			const rcCompactSpan& as2 = chf.spans[ai2];   //下的右
 			ch = rcMax(ch, (int)as2.y);
 			regs[2] = chf.spans[ai2].reg | (chf.areas[ai2] << 16);
 		}
@@ -64,7 +66,7 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		const int ax = x + rcGetDirOffsetX(dirp);
 		const int ay = y + rcGetDirOffsetY(dirp);
 		const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dirp);
-		const rcCompactSpan& as = chf.spans[ai];
+		const rcCompactSpan& as = chf.spans[ai];        //右
 		ch = rcMax(ch, (int)as.y);
 		regs[3] = chf.spans[ai].reg | (chf.areas[ai] << 16);
 		if (rcGetCon(as, dir) != RC_NOT_CONNECTED)
@@ -72,7 +74,7 @@ static int getCornerHeight(int x, int y, int i, int dir,
 			const int ax2 = ax + rcGetDirOffsetX(dir);
 			const int ay2 = ay + rcGetDirOffsetY(dir);
 			const int ai2 = (int)chf.cells[ax2+ay2*chf.width].index + rcGetCon(as, dir);
-			const rcCompactSpan& as2 = chf.spans[ai2];
+			const rcCompactSpan& as2 = chf.spans[ai2];  //右的下（注：右的下 和 下的右 可能不是相同的OpenSpan）。
 			ch = rcMax(ch, (int)as2.y);
 			regs[2] = chf.spans[ai2].reg | (chf.areas[ai2] << 16);
 		}
@@ -82,6 +84,10 @@ static int getCornerHeight(int x, int y, int i, int dir,
 	// 检查顶点是否是特殊的边缘顶点，这些顶点将在以后删除。
 	for (int j = 0; j < 4; ++j)
 	{
+		// 0 1 2 3
+		// 1 2 3 0
+		// 2 3 0 1
+		// 3 0 1 2
 		const int a = j;
 		const int b = (j+1) & 0x3;
 		const int c = (j+2) & 0x3;
@@ -89,10 +95,10 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		
 		// The vertex is a border vertex there are two same exterior cells in a row,
 		// followed by two interior cells and none of the regions are out of bounds.
-		const bool twoSameExts = (regs[a] & regs[b] & RC_BORDER_REG) != 0 && regs[a] == regs[b];
-		const bool twoInts = ((regs[c] | regs[d]) & RC_BORDER_REG) == 0;
-		const bool intsSameArea = (regs[c]>>16) == (regs[d]>>16);
-		const bool noZeros = regs[a] != 0 && regs[b] != 0 && regs[c] != 0 && regs[d] != 0;
+		const bool twoSameExts = (regs[a] & regs[b] & RC_BORDER_REG) != 0 && regs[a] == regs[b];    //a 和 b都在同一个边缘地区 
+		const bool twoInts = ((regs[c] | regs[d]) & RC_BORDER_REG) == 0;                            //c和d都不是边缘地区
+		const bool intsSameArea = (regs[c]>>16) == (regs[d]>>16);                                   //c和d的Area标记相同
+		const bool noZeros = regs[a] != 0 && regs[b] != 0 && regs[c] != 0 && regs[d] != 0;          //a b c d都在地区中
 		if (twoSameExts && twoInts && intsSameArea && noZeros)
 		{
 			isBorderVertex = true;
@@ -114,7 +120,7 @@ static void walkContour(int x, int y, int i,
 						unsigned char* flags, rcIntArray& points)
 {
 	// Choose the first non-connected edge
-	// 找到第一个是地区边界的方向
+	// 找到这个OpenSpan的第一个地区边界的方向。
 	unsigned char dir = 0;
 	while ((flags[i] & (1 << dir)) == 0)
 		dir++;
@@ -133,6 +139,8 @@ static void walkContour(int x, int y, int i,
 			// Choose the edge corner
 			bool isBorderVertex = false;
 			bool isAreaBorder = false;
+
+			// 一，得到dir方向轮廓顶点（体素空间单位）
 			int px = x;
 			int py = getCornerHeight(x, y, i, dir, chf, isBorderVertex);
 			int pz = y;
@@ -142,7 +150,9 @@ static void walkContour(int x, int y, int i,
 				case 1: px++; pz++; break;          //下面,使用右下角的点
 				case 2: px++; break;                //右边,使用右上角的点
 			}
-			int r = 0;   //这个方向的邻接OpenSpan的区域ID。
+
+			// 二，dir方向的邻接OpenSpan的地区ID和状态。
+			int r = 0;                                        //低16位是dir方向的邻接OpenSpan的地区ID。
 			const rcCompactSpan& s = chf.spans[i];
 			if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
 			{
@@ -150,18 +160,21 @@ static void walkContour(int x, int y, int i,
 				const int ay = y + rcGetDirOffsetY(dir);
 				const int ai = (int)chf.cells[ax+ay*chf.width].index + rcGetCon(s, dir);   //得到dir方向邻居索引
 				r = (int)chf.spans[ai].reg;
-				if (area != chf.areas[ai])       //这个方向的邻接OpenSpan不可走。 
+				if (area != chf.areas[ai])                   //dir方向的邻接OpenSpan不可走。 
 					isAreaBorder = true;
 			}
 			if (isBorderVertex)
-				r |= RC_BORDER_VERTEX;
+				r |= RC_BORDER_VERTEX;                       //标记到第17位
 			if (isAreaBorder)
-				r |= RC_AREA_BORDER;
+				r |= RC_AREA_BORDER;                         //标记到第18位
+
+			// 三，保存到数组中
 			points.push(px);
 			points.push(py);
 			points.push(pz);
 			points.push(r);
 			
+			// 
 			flags[i] &= ~(1 << dir); // Remove visited edges
 			dir = (dir+1) & 0x3;  // Rotate CW  按右手坐标系的右手法则来旋转。如果dir为3（上面的邻居），则新的dir为0（左边的邻居）。
 
@@ -169,15 +182,16 @@ static void walkContour(int x, int y, int i,
 		}
 		else
 		{
-			//这个方向的边界是内部边界，则移动到这个方向的邻居单元格
-			int ni = -1;
+			//这个方向的边界是内部边界，则移动到这个方向的邻接OpenSpan
+
+			int ni = -1;                                    //dir方向邻接OpenSpan的索引
 			const int nx = x + rcGetDirOffsetX(dir);
 			const int ny = y + rcGetDirOffsetY(dir);
 			const rcCompactSpan& s = chf.spans[i];
 			if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
 			{
 				const rcCompactCell& nc = chf.cells[nx+ny*chf.width];
-				ni = (int)nc.index + rcGetCon(s, dir);                    //得到dir方向邻居索引
+				ni = (int)nc.index + rcGetCon(s, dir);                    
 			}
 			if (ni == -1)
 			{
@@ -192,6 +206,7 @@ static void walkContour(int x, int y, int i,
 			dir = (dir+3) & 0x3;	// Rotate CCW
 		}
 		
+		//回到了起始OpenSapn的起始方向。退出
 		if (starti == i && startDir == dir)
 		{
 			break;
@@ -222,6 +237,7 @@ static float distancePtSeg(const int x, const int z,
 	return dx*dx + dz*dz;
 }
 
+// 简化轮廓
 static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 							const float maxError, const int maxEdgeLen, const int buildFlags)
 {
@@ -229,7 +245,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 	bool hasConnections = false;
 	for (int i = 0; i < points.size(); i += 4)
 	{
-		if ((points[i+3] & RC_CONTOUR_REG_MASK) != 0)
+		if ((points[i+3] & RC_CONTOUR_REG_MASK) != 0)    // 注:获取points[i+3]的低16位，低16位存放的是Regon ID。
 		{
 			hasConnections = true;
 			break;
@@ -243,10 +259,13 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		for (int i = 0, ni = points.size()/4; i < ni; ++i)
 		{
 			int ii = (i+1) % ni;
-			const bool differentRegs = (points[i*4+3] & RC_CONTOUR_REG_MASK) != (points[ii*4+3] & RC_CONTOUR_REG_MASK);
-			const bool areaBorders = (points[i*4+3] & RC_AREA_BORDER) != (points[ii*4+3] & RC_AREA_BORDER);
-			if (differentRegs || areaBorders)
+			const bool differentRegs = (points[i*4+3] & RC_CONTOUR_REG_MASK) != (points[ii*4+3] & RC_CONTOUR_REG_MASK);    // 判断Regon ID是否相同。
+			const bool areaBorders = (points[i*4+3] & RC_AREA_BORDER) != (points[ii*4+3] & RC_AREA_BORDER);                // 这个轮廓点的两边的OpenSpan的可行走标记不同。
+			if (differentRegs || areaBorders)        
 			{
+				// 1、不在同一Regon ID的轮廓点留下。
+				// 2、是同一Regon ID，但是两个轮廓点的可行走标记不一样的留下。
+
 				simplified.push(points[i*4+0]);
 				simplified.push(points[i*4+1]);
 				simplified.push(points[i*4+2]);
@@ -839,7 +858,7 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 ///
 /// @see rcAllocContourSet, rcCompactHeightfield, rcContourSet, rcConfig
 /// 构建轮廓。原始的轮廓会恰好覆盖地区的轮廓线。maxError和maxEdgeLen参数控制了简化的轮廓如何接近原始的轮廓。
-/// 如果两个span的地区ID不同，则这两个span的之间的边界叫做地区边界。同一地区的span之间的边界叫做内部边界。
+/// 如果两个span的地区ID不同，则这两个OpenSpan的之间的边界叫做地区边界。同一地区的OpenSpan之间的边界叫做内部边界。
 bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					 const float maxError, const int maxEdgeLen,
 					 rcContourSet& cset, const int buildFlags)
@@ -871,7 +890,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	cset.borderSize = chf.borderSize;
 	cset.maxError = maxError;
 	
-	// 看来区域数量不能超过8啊。
+	// 看来地区数量不能超过8啊。
 	int maxContours = rcMax((int)chf.maxRegions, 8);
 	cset.conts = (rcContour*)rcAlloc(sizeof(rcContour)*maxContours, RC_ALLOC_PERM);
 	if (!cset.conts)
@@ -888,8 +907,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	ctx->startTimer(RC_TIMER_BUILD_CONTOURS_TRACE);
 	
 	// Mark boundaries.
-	// 标记处轮廓的边界
-	// 行扫描
+	// 记录有地区ID的OpenSpan的4个边的边界类型，保存到flags数组中。
 	for (int y = 0; y < h; ++y)
 	{
 		for (int x = 0; x < w; ++x)
@@ -945,7 +963,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 			const rcCompactCell& c = chf.cells[x+y*w];
 			for (int i = (int)c.index, ni = (int)(c.index+c.count); i < ni; ++i)
 			{
-				//没有地区边界，略过
+				//没有地区边界（或者都是内部边界）略过。
 				if (flags[i] == 0 || flags[i] == 0xf)
 				{
 					flags[i] = 0;
