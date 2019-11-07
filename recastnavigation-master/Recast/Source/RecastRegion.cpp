@@ -1591,18 +1591,18 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 
 	chf.borderSize = borderSize;
 	
-	//把地形插入到水中，进行泛洪。
+	//把地形插入到水中，进行泛洪。插入水中的速度为每次（NB_STACKS-1）个高度。
 
 	int sId = -1;
 	while (level > 0)
 	{
-		level = level >= 2 ? level-2 : 0;    //循环减2，直到为0。看来插入水中的速度为2。
-		sId = (sId+1) & (NB_STACKS-1);       //sId从0到NB_STACKS-1循环。
+		level = level >= 2 ? level-2 : 0;    //循环减2，直到为0。
+		sId = (sId+1) & (NB_STACKS-1);       //sId从0到(NB_STACKS-1)循环。
 
 //		ctx->startTimer(RC_TIMER_DIVIDE_TO_LEVELS);
 
 		if (sId == 0)
-			sortCellsByLevel(level, chf, srcReg, NB_STACKS, lvlStacks, 1);            // 得到，在沉到水中和在水面上且高度小于NB_STACKS的，且可行走的和没有地区ID的OpenSpan，记录到lvlStacks。
+			sortCellsByLevel(level, chf, srcReg, NB_STACKS, lvlStacks, 1);            // 每次插入水中后，得到，在沉到水中和在水面上且高度小于NB_STACKS的，且可行走的和没有地区ID的OpenSpan，记录到lvlStacks。
 		else 
 			appendStacks(lvlStacks[sId-1], lvlStacks[sId], srcReg); // copy left overs from last level
 
