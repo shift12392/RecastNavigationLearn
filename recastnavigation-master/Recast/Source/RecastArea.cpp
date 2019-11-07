@@ -50,7 +50,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 		return false;
 	}
 	
-	// Init distance. 出事化为255
+	// Init distance. 出始化为255
 	memset(dist, 0xff, sizeof(unsigned char)*chf.spanCount);
 	
 	// Mark boundary cells.  把不可行走的OpenSpan和其旁边的OpenSpan的距离设置为0。

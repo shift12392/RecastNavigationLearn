@@ -169,7 +169,7 @@ void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight, const int walk
 				
 				// The current span is close to a ledge if the drop to any
 				// neighbour span is less than the walkableClimb.
-				// 如果到任何相邻跨度的降落小于walkableClimb，则当前span是ledge，不可行走。
+				// 如果到任何相邻跨度的降落大于walkableClimb，则当前span是ledge，不可行走。
 				// 4个轴邻居总得存在一个，可以从当前span走到这个轴邻居上
 				if (minh < -walkableClimb)
 				{
@@ -177,7 +177,7 @@ void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight, const int walk
 				}
 				// If the difference between all neighbours is too large,
 				// we are at steep slope, mark the span as ledge.
-				// 如果4个轴邻居中最高的和最低的相差太大，则当前span不可走
+				// 如果4个轴邻居中最高的nbot和最低的nbot相差大于walkableClimb（为什么不是2*walkableClimb？），则当前span不可走
 				else if ((asmax - asmin) > walkableClimb)
 				{
 					s->area = RC_NULL_AREA;

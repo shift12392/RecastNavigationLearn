@@ -286,6 +286,7 @@ void rcCalcBounds(const float* verts, int nv, float* bmin, float* bmax)
 
 void rcCalcGridSize(const float* bmin, const float* bmax, float cs, int* w, int* h)
 {
+	//相除时，余数大于等于0.5的，加上一个体素单位，余数小于0.5的，直接截取整数。
 	*w = (int)((bmax[0] - bmin[0])/cs+0.5f);
 	*h = (int)((bmax[2] - bmin[2])/cs+0.5f);
 }
@@ -352,6 +353,8 @@ void rcMarkWalkableTriangles(rcContext* ctx, const float walkableSlopeAngle,
 		const int* tri = &tris[i*3];
 		calcTriNormal(&verts[tri[0]*3], &verts[tri[1]*3], &verts[tri[2]*3], norm);
 		// Check if the face is walkable.
+
+		// 上坡或者下坡，都一样，只要坡度大于walkableThr，都不能行走。
 		if (norm[1] > walkableThr)
 			areas[i] = RC_WALKABLE_AREA;
 	}
@@ -425,6 +428,8 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	
 	const int w = hf.width;
 	const int h = hf.height;
+
+	// 得到可行走的SolidSpan的数量
 	const int spanCount = rcGetHeightFieldSpanCount(ctx, hf);
 
 	// Fill in header.
@@ -495,7 +500,7 @@ bool rcBuildCompactHeightfield(rcContext* ctx, const int walkableHeight, const i
 	}
 
 	// Find neighbour connections.
-	// 找出每个span的邻接OpenSpan
+	// 找出每个OpenSpan的邻接OpenSpan
 	// 邻接OpenSpan就是轴邻居OpenSpan串中的第一个满足“能穿过（不碰头），能跨过”条件的OpenSpan。
 	const int MAX_LAYERS = RC_NOT_CONNECTED-1;
 	int tooHighNeighbour = 0;

@@ -55,6 +55,7 @@
 
 
 // This value specifies how many layers (or "floors") each navmesh tile is expected to have.
+// 此值指定每个导航网格tile应具有多少层（或“地板”）。
 static const int EXPECTED_LAYERS_PER_TILE = 4;
 
 
@@ -292,17 +293,20 @@ int Sample_TempObstacles::rasterizeTileLayers(
 	const rcChunkyTriMesh* chunkyMesh = m_geom->getChunkyMesh();
 	
 	// Tile bounds.
-	const float tcs = cfg.tileSize * cfg.cs;
+	const float tcs = cfg.tileSize * cfg.cs;   // 一个tile的大小，世界空间单位
 	
-	rcConfig tcfg;
+	rcConfig tcfg;   // 从下面可以看出，这个tcfg的bounding box的大小调整了。
 	memcpy(&tcfg, &cfg, sizeof(tcfg));
 
+	//得到这个tile的bounding box大小
 	tcfg.bmin[0] = cfg.bmin[0] + tx*tcs;
 	tcfg.bmin[1] = cfg.bmin[1];
 	tcfg.bmin[2] = cfg.bmin[2] + ty*tcs;
 	tcfg.bmax[0] = cfg.bmin[0] + (tx+1)*tcs;
 	tcfg.bmax[1] = cfg.bmax[1];
 	tcfg.bmax[2] = cfg.bmin[2] + (ty+1)*tcs;
+
+	//扩展bounding box
 	tcfg.bmin[0] -= tcfg.borderSize*tcfg.cs;
 	tcfg.bmin[2] -= tcfg.borderSize*tcfg.cs;
 	tcfg.bmax[0] += tcfg.borderSize*tcfg.cs;
@@ -315,7 +319,7 @@ int Sample_TempObstacles::rasterizeTileLayers(
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Out of memory 'solid'.");
 		return 0;
 	}
-	if (!rcCreateHeightfield(m_ctx, *rc.solid, tcfg.width, tcfg.height, tcfg.bmin, tcfg.bmax, tcfg.cs, tcfg.ch))
+	if (!rcCreateHeightfield(m_ctx, *rc.solid, tcfg.width, tcfg.height, tcfg.bmin, tcfg.bmax, tcfg.cs, tcfg.ch))    //注：这里tcfg.width, tcfg.height是cfg.tileSize加上两个tcfg.borderSize，体素单位。
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not create solid heightfield.");
 		return 0;
@@ -349,10 +353,12 @@ int Sample_TempObstacles::rasterizeTileLayers(
 		const int* tris = &chunkyMesh->tris[node.i*3];
 		const int ntris = node.n;
 		
+		//标记可行走的三角形，储存在m_triareas中。
 		memset(rc.triareas, 0, ntris*sizeof(unsigned char));
 		rcMarkWalkableTriangles(m_ctx, tcfg.walkableSlopeAngle,
 								verts, nverts, tris, ntris, rc.triareas);
 		
+		//光栅化三角形
 		if (!rcRasterizeTriangles(m_ctx, verts, nverts, tris, rc.triareas, ntris, *rc.solid, tcfg.walkableClimb))
 			return 0;
 	}
@@ -1209,8 +1215,8 @@ bool Sample_TempObstacles::handleBuild()
 	int gw = 0, gh = 0;
 	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
 	const int ts = (int)m_tileSize;
-	const int tw = (gw + ts-1) / ts;
-	const int th = (gh + ts-1) / ts;
+	const int tw = (gw + ts-1) / ts;    //x轴Tile的数量
+	const int th = (gh + ts-1) / ts;    //z轴Tile的数量
 
 	// Generation params.
 	rcConfig cfg;
@@ -1228,11 +1234,11 @@ bool Sample_TempObstacles::handleBuild()
 	cfg.maxVertsPerPoly = (int)m_vertsPerPoly;
 	cfg.tileSize = (int)m_tileSize;
 	cfg.borderSize = cfg.walkableRadius + 3; // Reserve enough padding.
-	cfg.width = cfg.tileSize + cfg.borderSize*2;
+	cfg.width = cfg.tileSize + cfg.borderSize*2;            //从这里可以看出，这个rcConfig是一个Tile的大小，加上两个cfg.borderSize的大小，体素单位。
 	cfg.height = cfg.tileSize + cfg.borderSize*2;
 	cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist;
 	cfg.detailSampleMaxError = m_cellHeight * m_detailSampleMaxError;
-	rcVcopy(cfg.bmin, bmin);
+	rcVcopy(cfg.bmin, bmin);     // 这里是世界的bounding box的大小。
 	rcVcopy(cfg.bmax, bmax);
 	
 	// Tile cache params.

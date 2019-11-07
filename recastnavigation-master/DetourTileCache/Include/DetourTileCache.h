@@ -79,20 +79,20 @@ struct dtTileCacheObstacle
 	unsigned char state;
 	unsigned char ntouched;
 	unsigned char npending;
-	dtTileCacheObstacle* next;
+	dtTileCacheObstacle* next;    //指向下一个障碍物
 };
 
 struct dtTileCacheParams
 {
 	float orig[3];
-	float cs, ch;
-	int width, height;
+	float cs, ch;          //每个体素格子的宽高（世界空间单位）
+	int width, height;     //每个Tile的宽高（体素空间单位）
 	float walkableHeight;
 	float walkableRadius;
 	float walkableClimb;
 	float maxSimplificationError;
-	int maxTiles;
-	int maxObstacles;
+	int maxTiles;         //最大有多少个Tile
+	int maxObstacles;     //最多有多少个障碍物
 };
 
 struct dtTileCacheMeshProcess
@@ -244,8 +244,8 @@ private:
 	dtTileCacheCompressor* m_tcomp;
 	dtTileCacheMeshProcess* m_tmproc;
 	
-	dtTileCacheObstacle* m_obstacles;
-	dtTileCacheObstacle* m_nextFreeObstacle;
+	dtTileCacheObstacle* m_obstacles;           //障碍物链表
+	dtTileCacheObstacle* m_nextFreeObstacle;    //障碍物链表m_obstacles的表头。
 	
 	static const int MAX_REQUESTS = 64;
 	ObstacleRequest m_reqs[MAX_REQUESTS];

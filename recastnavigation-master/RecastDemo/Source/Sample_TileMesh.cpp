@@ -729,21 +729,23 @@ void Sample_TileMesh::buildAllTiles()
 	
 	const float* bmin = m_geom->getNavMeshBoundsMin();
 	const float* bmax = m_geom->getNavMeshBoundsMax();
-	int gw = 0, gh = 0;
+	int gw = 0, gh = 0;  // 体素格子的个数
 	rcCalcGridSize(bmin, bmax, m_cellSize, &gw, &gh);
-	const int ts = (int)m_tileSize;
-	const int tw = (gw + ts-1) / ts;
-	const int th = (gh + ts-1) / ts;
-	const float tcs = m_tileSize*m_cellSize;
+	const int ts = (int)m_tileSize;             //一个tile的大小，体素空间单位。
+	const int tw = (gw + ts-1) / ts;            // x轴上tile的个数
+	const int th = (gh + ts-1) / ts;            // z轴上tile的个数
+	const float tcs = m_tileSize*m_cellSize;    //一个tile的大小，世界空间单位。
 
 	
 	// Start the build process.
 	m_ctx->startTimer(RC_TIMER_TEMP);
 
+	// 遍历tile
 	for (int y = 0; y < th; ++y)
 	{
 		for (int x = 0; x < tw; ++x)
 		{
+			// 计算一个tile的包围盒，世界空间单位。
 			m_lastBuiltTileBmin[0] = bmin[0] + x*tcs;
 			m_lastBuiltTileBmin[1] = bmin[1];
 			m_lastBuiltTileBmin[2] = bmin[2] + y*tcs;
@@ -825,16 +827,17 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	m_cfg.maxVertsPerPoly = (int)m_vertsPerPoly;
 	m_cfg.tileSize = (int)m_tileSize;
 	m_cfg.borderSize = m_cfg.walkableRadius + 3; // Reserve enough padding.
-	m_cfg.width = m_cfg.tileSize + m_cfg.borderSize*2;
-	m_cfg.height = m_cfg.tileSize + m_cfg.borderSize*2;
+	m_cfg.width = m_cfg.tileSize + m_cfg.borderSize*2;     // x轴扩展一个m_cfg.borderSize，体素空间单位。
+	m_cfg.height = m_cfg.tileSize + m_cfg.borderSize*2;    // z轴扩展一个m_cfg.borderSize，体素空间单位。
 	m_cfg.detailSampleDist = m_detailSampleDist < 0.9f ? 0 : m_cellSize * m_detailSampleDist;
 	m_cfg.detailSampleMaxError = m_cellHeight * m_detailSampleMaxError;
 	
 	// Expand the heighfield bounding box by border size to find the extents of geometry we need to build this tile.
+	// 通过border size扩展the heighfield bounding，以找到构建此tile所需的几何图形范围。
 	//
 	// This is done in order to make sure that the navmesh tiles connect correctly at the borders,
-	// and the obstacles close to the border work correctly with the dilation process.
-	// No polygons (or contours) will be created on the border area.
+	// and the obstacles close to the border work correctly with the dilation process.  这样做是为了确保导航网格tile在边界处正确连接，并且靠近边界的障碍物在dilation过程中可以正常工作。
+	// No polygons (or contours) will be created on the border area.  在边界区域上将不会创建多边形（或轮廓）。
 	//
 	// IMPORTANT!
 	//
@@ -846,11 +849,13 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 	//   : +-----+ :<-- geometry needed
 	//   :.........:
 	//
-	// You should use this bounding box to query your input geometry.
+	// You should use this bounding box to query your input geometry.  您应该使用this bounding box来查询输入几何。
 	//
-	// For example if you build a navmesh for terrain, and want the navmesh tiles to match the terrain tile size
-	// you will need to pass in data from neighbour terrain tiles too! In a simple case, just pass in all the 8 neighbours,
+	// For example if you build a navmesh for terrain, and want the navmesh tiles to match the terrain tile size     例如，如果您为地形构建导航网格，并希望导航网格tile与地形tile大小匹配
+	// you will need to pass in data from neighbour terrain tiles too! In a simple case, just pass in all the 8 neighbours,     您还需要从邻居地形图块传递数据！ 在一个简单的情况下，只需通过所有8个邻居，
 	// or use the bounding box below to only pass in a sliver of each of the 8 neighbours.
+
+	// 当然边界框也要扩展
 	rcVcopy(m_cfg.bmin, bmin);
 	rcVcopy(m_cfg.bmax, bmax);
 	m_cfg.bmin[0] -= m_cfg.borderSize*m_cfg.cs;
@@ -881,9 +886,9 @@ unsigned char* Sample_TileMesh::buildTileMesh(const int tx, const int ty, const 
 		return 0;
 	}
 	
-	// Allocate array that can hold triangle flags.
+	// Allocate array that can hold triangle flags.   分配可以容纳三角形标记的数组。
 	// If you have multiple meshes you need to process, allocate
-	// and array which can hold the max number of triangles you need to process.
+	// and array which can hold the max number of triangles you need to process.   如果您需要处理多个网格，请分配和array可以容纳需要处理的最大三角形数的数组。
 	m_triareas = new unsigned char[chunkyMesh->maxTrisPerChunk];
 	if (!m_triareas)
 	{

@@ -126,10 +126,12 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 		memset(prevCount,0,sizeof(int)*regId);
 		unsigned char sweepId = 0;
 		
+		//––…®√Ë
 		for (int x = borderSize; x < w-borderSize; ++x)
 		{
 			const rcCompactCell& c = chf.cells[x+y*w];
 			
+			//±È¿˙OpenSpan¥Æ°£
 			for (int i = (int)c.index, ni = (int)(c.index+c.count); i < ni; ++i)
 			{
 				const rcCompactSpan& s = chf.spans[i];

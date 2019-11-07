@@ -327,8 +327,8 @@ inline int dtGetDetailTriEdgeFlags(unsigned char triFlags, int edgeIndex)
 struct dtNavMeshParams
 {
 	float orig[3];					///< The world space origin of the navigation mesh's tile space. [(x, y, z)]
-	float tileWidth;				///< The width of each tile. (Along the x-axis.)
-	float tileHeight;				///< The height of each tile. (Along the z-axis.)
+	float tileWidth;				///< The width of each tile. (Along the x-axis.)  世界坐标系
+	float tileHeight;				///< The height of each tile. (Along the z-axis.) 世界坐标系
 	int maxTiles;					///< The maximum number of tiles the navigation mesh can contain.
 	int maxPolys;					///< The maximum number of polygons each tile can contain.
 };
@@ -664,7 +664,7 @@ private:
 	int m_tileLutMask;					///< Tile hash lookup mask.
 
 	dtMeshTile** m_posLookup;			///< Tile hash lookup.
-	dtMeshTile* m_nextFree;				///< Freelist of tiles.
+	dtMeshTile* m_nextFree;				///< Freelist of tiles.   表头
 	dtMeshTile* m_tiles;				///< List of tiles.
 		
 #ifndef DT_POLYREF64

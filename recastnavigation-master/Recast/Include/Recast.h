@@ -204,6 +204,7 @@ struct rcConfig
 	int height;
 	
 	/// The width/height size of tile's on the xz-plane. [Limit: >= 0] [Units: vx]
+	// 一个tile的大小， 体素空间单位
 	int tileSize;
 	
 	/// The size of the non-navigable border around the heightfield. [Limit: >=0] [Units: vx]
@@ -357,7 +358,7 @@ struct rcCompactHeightfield
 	~rcCompactHeightfield();
 	int width;					///< The width of the heightfield. (Along the x-axis in cell units.)
 	int height;					///< The height of the heightfield. (Along the z-axis in cell units.)
-	// 实心高度场中的SolidSpan的数量。
+	// 实心高度场中的可行走的SolidSpan的数量。
 	int spanCount;				///< The number of spans in the heightfield.
 	int walkableHeight;			///< The walkable height used during the build of the field.  (See: rcConfig::walkableHeight)
 	int walkableClimb;			///< The walkable climb used during the build of the field. (See: rcConfig::walkableClimb)
@@ -372,7 +373,7 @@ struct rcCompactHeightfield
 	float cs;					///< The size of each cell. (On the xz-plane.)
 	float ch;					///< The height of each cell. (The minimum increment along the y-axis.)
 
-	// rcCompactCell作为索引，指向了rcCompactSpan
+	// rcCompactCell作为索引，指向了rcCompactSpan，[Size: #width*#height]
 	rcCompactCell* cells;		///< Array of cells. [Size: #width*#height]
 
 	// 紧凑高度场所有的OpenSpan。
@@ -627,7 +628,7 @@ static const unsigned char RC_NULL_AREA = 0;
 /// The default area id used to indicate a walkable polygon. 
 /// This is also the maximum allowed area id, and the only non-null area id 
 /// recognized by some steps in the build process. 
-static const unsigned char RC_WALKABLE_AREA = 63;
+static const unsigned char RC_WALKABLE_AREA = 63;                   //0100 0000
 
 /// The value returned by #rcGetCon if the specified direction is not connected
 /// to another span. (Has no neighbor.)

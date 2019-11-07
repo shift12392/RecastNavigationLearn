@@ -88,7 +88,7 @@ static void calculateDistanceField(rcCompactHeightfield& chf, unsigned short* sr
 				
 				if (rcGetCon(s, 0) != RC_NOT_CONNECTED)
 				{
-					// (-1,0)
+					// (-1,0)  左
 					const int ax = x + rcGetDirOffsetX(0);
 					const int ay = y + rcGetDirOffsetY(0);
 					const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, 0);
@@ -96,7 +96,7 @@ static void calculateDistanceField(rcCompactHeightfield& chf, unsigned short* sr
 					if (src[ai]+2 < src[i])
 						src[i] = src[ai]+2;
 					
-					// (-1,-1)
+					// (-1,-1) 左上
 					if (rcGetCon(as, 3) != RC_NOT_CONNECTED)
 					{
 						const int aax = ax + rcGetDirOffsetX(3);
@@ -108,7 +108,7 @@ static void calculateDistanceField(rcCompactHeightfield& chf, unsigned short* sr
 				}
 				if (rcGetCon(s, 3) != RC_NOT_CONNECTED)
 				{
-					// (0,-1)
+					// (0,-1) 上
 					const int ax = x + rcGetDirOffsetX(3);
 					const int ay = y + rcGetDirOffsetY(3);
 					const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, 3);
@@ -116,7 +116,7 @@ static void calculateDistanceField(rcCompactHeightfield& chf, unsigned short* sr
 					if (src[ai]+2 < src[i])
 						src[i] = src[ai]+2;
 					
-					// (1,-1)
+					// (1,-1) 右上
 					if (rcGetCon(as, 2) != RC_NOT_CONNECTED)
 					{
 						const int aax = ax + rcGetDirOffsetX(2);
@@ -263,7 +263,7 @@ static bool floodRegion(int x, int y, int i,
 	// Flood fill mark region.
 	stack.clear();
 	stack.push_back(LevelStackEntry(x, y, i));
-	srcReg[i] = r;
+	srcReg[i] = r;            //先把当前OpenSpan的地区ID设置为r，如果当前OpenSpan的8个邻居都没有地区ID，则当前OpenSpan的地区ID的就为r了。
 	srcDist[i] = 0;
 	
 	unsigned short lev = level >= 2 ? level-2 : 0;
@@ -274,17 +274,18 @@ static bool floodRegion(int x, int y, int i,
 		LevelStackEntry& back = stack.back();
 		int cx = back.x;
 		int cy = back.y;
-		int ci = back.index;
+		int ci = back.index;                      
 		stack.pop_back();
 		
-		const rcCompactSpan& cs = chf.spans[ci];
+		const rcCompactSpan& cs = chf.spans[ci];          //当前的OpenSpan
 		
 		// Check if any of the neighbours already have a valid region set.
+		//按照右手法则的旋转顺序遍历邻居，得到第一个已经有（或者和自己的不一样的）地区ID的邻居的地区ID
 		unsigned short ar = 0;
-		for (int dir = 0; dir < 4; ++dir)
+		for (int dir = 0; dir < 4; ++dir)            
 		{
 			// 8 connected
-			if (rcGetCon(cs, dir) != RC_NOT_CONNECTED)
+			if (rcGetCon(cs, dir) != RC_NOT_CONNECTED)   //比如这个是下邻居
 			{
 				const int ax = cx + rcGetDirOffsetX(dir);
 				const int ay = cy + rcGetDirOffsetY(dir);
@@ -292,7 +293,7 @@ static bool floodRegion(int x, int y, int i,
 				if (chf.areas[ai] != area)
 					continue;
 				unsigned short nr = srcReg[ai];
-				if (nr & RC_BORDER_REG) // Do not take borders into account.
+				if (nr & RC_BORDER_REG) // Do not take borders into account.   不能是边框地区
 					continue;
 				if (nr != 0 && nr != r)
 				{
@@ -303,7 +304,7 @@ static bool floodRegion(int x, int y, int i,
 				const rcCompactSpan& as = chf.spans[ai];
 				
 				const int dir2 = (dir+1) & 0x3;
-				if (rcGetCon(as, dir2) != RC_NOT_CONNECTED)
+				if (rcGetCon(as, dir2) != RC_NOT_CONNECTED)   //这个则是右下邻居
 				{
 					const int ax2 = ax + rcGetDirOffsetX(dir2);
 					const int ay2 = ay + rcGetDirOffsetY(dir2);
@@ -320,14 +321,15 @@ static bool floodRegion(int x, int y, int i,
 			}
 		}
 		if (ar != 0)
-		{
+		{//如果8个邻居中有一个邻居有地区ID，则把srcReg数组中的当前OpenSpan的地区ID清零。因为后面会继续处理。
 			srcReg[ci] = 0;
 			continue;
 		}
 		
-		count++;
+		count++;   //扩展的圈数
 		
 		// Expand neighbours.
+		// 扩展到了邻居
 		for (int dir = 0; dir < 4; ++dir)
 		{
 			if (rcGetCon(cs, dir) != RC_NOT_CONNECTED)
@@ -409,7 +411,7 @@ static void expandRegions(int maxIter, unsigned short level,
 		{
 			int x = stack[j].x;
 			int y = stack[j].y;
-			int i = stack[j].index;
+			int i = stack[j].index;          //OpenSpan的索引
 			if (i < 0)
 			{
 				failed++;
@@ -425,7 +427,7 @@ static void expandRegions(int maxIter, unsigned short level,
 				if (rcGetCon(s, dir) == RC_NOT_CONNECTED) continue;
 				const int ax = x + rcGetDirOffsetX(dir);
 				const int ay = y + rcGetDirOffsetY(dir);
-				const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, dir);
+				const int ai = (int)chf.cells[ax+ay*w].index + rcGetCon(s, dir);   //邻居OpenSpan的索引
 				if (chf.areas[ai] != area) continue;
 				if (srcReg[ai] > 0 && (srcReg[ai] & RC_BORDER_REG) == 0)
 				{
@@ -472,11 +474,11 @@ static void sortCellsByLevel(unsigned short startLevel,
 							  rcCompactHeightfield& chf,
 							  const unsigned short* srcReg,
 							  unsigned int nbStacks, rcTempVector<LevelStackEntry>* stacks,
-							  unsigned short loglevelsPerStack) // the levels per stack (2 in our case) as a bit shift
+							  unsigned short loglevelsPerStack) // the levels per stack (2 in our case) as a bit shift  每个堆栈的级别（在我们的示例中为2）作为位移
 {
 	const int w = chf.width;
 	const int h = chf.height;
-	startLevel = startLevel >> loglevelsPerStack;
+	startLevel = startLevel >> loglevelsPerStack;    // startLevel / (2的loglevelsPerStack次幂)
 
 	for (unsigned int j=0; j<nbStacks; ++j)
 		stacks[j].clear();
@@ -489,6 +491,7 @@ static void sortCellsByLevel(unsigned short startLevel,
 			const rcCompactCell& c = chf.cells[x+y*w];
 			for (int i = (int)c.index, ni = (int)(c.index+c.count); i < ni; ++i)
 			{
+				// 在这里已经过滤掉不可行走的OpenSpan和已经有地区ID的OpenSpan
 				if (chf.areas[i] == RC_NULL_AREA || srcReg[i] != 0)
 					continue;
 
@@ -496,7 +499,7 @@ static void sortCellsByLevel(unsigned short startLevel,
 				int sId = startLevel - level;
 				if (sId >= (int)nbStacks)
 					continue;
-				if (sId < 0)
+				if (sId < 0)          //太远的都记录到栈底
 					sId = 0;
 
 				stacks[sId].push_back(LevelStackEntry(x, y, i));
@@ -1513,21 +1516,21 @@ bool rcBuildRegionsMonotone(rcContext* ctx, rcCompactHeightfield& chf,
 
 /// @par
 /// 
-/// Non-null regions will consist of connected, non-overlapping walkable spans that form a single contour.
-/// Contours will form simple polygons.
+/// Non-null regions will consist of connected, non-overlapping walkable spans that form a single contour.  非零regions将由连接的，不重叠的可步行spans组成，这些跨度形成单个轮廓。
+/// Contours will form simple polygons. 轮廓将形成简单的多边形。
 /// 
 /// If multiple regions form an area that is smaller than @p minRegionArea, then all spans will be
-/// re-assigned to the zero (null) region.
+/// re-assigned to the zero (null) region.  如果多个区域形成的区域小于@p minRegionArea，则所有spans将重新为零（空）区域。
 /// 
-/// Watershed partitioning can result in smaller than necessary regions, especially in diagonal corridors. 
-/// @p mergeRegionArea helps reduce unecessarily small regions.
+/// Watershed partitioning can result in smaller than necessary regions, especially in diagonal corridors.  分水岭分区可能会导致result小于necessary regions，尤其是在对角走廊中。 
+/// @p mergeRegionArea helps reduce unecessarily small regions.  @p mergeRegionArea有助于减少不必要的小regions。
 /// 
 /// See the #rcConfig documentation for more information on the configuration parameters.
 /// 
 /// The region data will be available via the rcCompactHeightfield::maxRegions
 /// and rcCompactSpan::reg fields.
 /// 
-/// @warning The distance field must be created using #rcBuildDistanceField before attempting to build regions.
+/// @warning The distance field must be created using #rcBuildDistanceField before attempting to build regions.  @warning在尝试构建regions之前，必须使用#rcBuildDistanceField创建距离字段。
 /// 
 /// @see rcCompactHeightfield, rcCompactSpan, rcBuildDistanceField, rcBuildRegionsMonotone, rcConfig
 bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
@@ -1565,7 +1568,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 	memset(srcDist, 0, sizeof(unsigned short)*chf.spanCount);
 	
 	unsigned short regionId = 1;
-	unsigned short level = (chf.maxDistance+1) & ~1;
+	unsigned short level = (chf.maxDistance+1) & ~1;    //使level为2的倍数
 
 	// TODO: Figure better formula, expandIters defines how much the 
 	// watershed "overflows" and simplifies the regions. Tying it to
@@ -1588,16 +1591,18 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 
 	chf.borderSize = borderSize;
 	
+	//把地形插入到水中，进行泛洪。
+
 	int sId = -1;
 	while (level > 0)
 	{
-		level = level >= 2 ? level-2 : 0;
-		sId = (sId+1) & (NB_STACKS-1);
+		level = level >= 2 ? level-2 : 0;    //循环减2，直到为0。看来插入水中的速度为2。
+		sId = (sId+1) & (NB_STACKS-1);       //sId从0到NB_STACKS-1循环。
 
 //		ctx->startTimer(RC_TIMER_DIVIDE_TO_LEVELS);
 
 		if (sId == 0)
-			sortCellsByLevel(level, chf, srcReg, NB_STACKS, lvlStacks, 1);
+			sortCellsByLevel(level, chf, srcReg, NB_STACKS, lvlStacks, 1);            // 得到，在沉到水中和在水面上且高度小于NB_STACKS的，且可行走的和没有地区ID的OpenSpan，记录到lvlStacks。
 		else 
 			appendStacks(lvlStacks[sId-1], lvlStacks[sId], srcReg); // copy left overs from last level
 
@@ -1606,7 +1611,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 		{
 			rcScopedTimer timerExpand(ctx, RC_TIMER_BUILD_REGIONS_EXPAND);
 
-			// Expand current regions until no empty connected cells found.
+			// Expand current regions until no empty connected cells found.  扩展当前区域，直到找不到空的连接cells。
 			expandRegions(expandIters, level, chf, srcReg, srcDist, lvlStacks[sId], false);
 		}
 		
@@ -1620,7 +1625,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 				int x = current.x;
 				int y = current.y;
 				int i = current.index;
-				if (i >= 0 && srcReg[i] == 0)
+				if (i >= 0 && srcReg[i] == 0)    //注意：只有srcReg[i] == 0的才能调用floodRegion。如果当前i的OpenSpan的8个邻居中有一个邻居有地区ID，则不设置srcReg[i]。
 				{
 					if (floodRegion(x, y, i, level, regionId, chf, srcReg, srcDist, stack))
 					{
@@ -1637,7 +1642,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 		}
 	}
 	
-	// Expand current regions until no empty connected cells found.
+	// Expand current regions until no empty connected cells found. 
 	expandRegions(expandIters*8, 0, chf, srcReg, srcDist, stack, true);
 	
 	ctx->stopTimer(RC_TIMER_BUILD_REGIONS_WATERSHED);
