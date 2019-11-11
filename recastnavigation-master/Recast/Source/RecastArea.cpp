@@ -36,6 +36,8 @@
 /// @see rcCompactHeightfield, rcBuildCompactHeightfield, rcConfig::walkableRadius
 bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 {
+	//注：经过这一步，有一些OpenSpan变成不可行走了。
+
 	rcAssert(ctx);
 	
 	const int w = chf.width;
@@ -51,6 +53,7 @@ bool rcErodeWalkableArea(rcContext* ctx, int radius, rcCompactHeightfield& chf)
 	}
 	
 	// Init distance. 出始化为255
+	// 注意：这里dist的数组为spanCount个，这是SolidSpan的数量。
 	memset(dist, 0xff, sizeof(unsigned char)*chf.spanCount);
 	
 	// Mark boundary cells.  把不可行走的OpenSpan和其旁边的OpenSpan的距离设置为0。

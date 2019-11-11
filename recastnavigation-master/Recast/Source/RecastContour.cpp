@@ -38,7 +38,6 @@ static int getCornerHeight(int x, int y, int i, int dir,
 	
 	// Combine region and area codes in order to prevent
 	// border vertices which are in between two areas to be removed.
-	// 组合region和area代码，以防止两个areas之间的边界顶点被删除。
 	regs[0] = chf.spans[i].reg | (chf.areas[i] << 16);         //高16位是area标记，低16位是region ID。
 	
 	// 得到，序号i的OpenSpan的y值与序号i的OpenSpan相邻的三个OpenSpan（右手坐标系的右手法则的旋转方向）的y值，中的最大值。
@@ -95,8 +94,8 @@ static int getCornerHeight(int x, int y, int i, int dir,
 		
 		// The vertex is a border vertex there are two same exterior cells in a row,
 		// followed by two interior cells and none of the regions are out of bounds.
-		const bool twoSameExts = (regs[a] & regs[b] & RC_BORDER_REG) != 0 && regs[a] == regs[b];    //a 和 b都在同一个边缘地区 
-		const bool twoInts = ((regs[c] | regs[d]) & RC_BORDER_REG) == 0;                            //c和d都不是边缘地区
+		const bool twoSameExts = (regs[a] & regs[b] & RC_BORDER_REG) != 0 && regs[a] == regs[b];    //a 和 b都在同一个BORDER地区 
+		const bool twoInts = ((regs[c] | regs[d]) & RC_BORDER_REG) == 0;                            //c和d都不是BORDER地区
 		const bool intsSameArea = (regs[c]>>16) == (regs[d]>>16);                                   //c和d的Area标记相同
 		const bool noZeros = regs[a] != 0 && regs[b] != 0 && regs[c] != 0 && regs[d] != 0;          //a b c d都在地区中
 		if (twoSameExts && twoInts && intsSameArea && noZeros)
@@ -858,11 +857,13 @@ static void mergeRegionHoles(rcContext* ctx, rcContourRegion& region)
 ///
 /// @see rcAllocContourSet, rcCompactHeightfield, rcContourSet, rcConfig
 /// 构建轮廓。原始的轮廓会恰好覆盖地区的轮廓线。maxError和maxEdgeLen参数控制了简化的轮廓如何接近原始的轮廓。
-/// 如果两个span的地区ID不同，则这两个OpenSpan的之间的边界叫做地区边界。同一地区的OpenSpan之间的边界叫做内部边界。
 bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					 const float maxError, const int maxEdgeLen,
 					 rcContourSet& cset, const int buildFlags)
 {
+	// 注：如果这个OpenSpan的一个方向没有邻接OpenSpan，或者这个OpenSpan的地区ID和其这个方向的邻接OpenSpan的地区ID不同（或者这个方向的邻接OpenSpan没有地区ID），则这个OpenSpan的这个方向的边界叫做地区边界。
+	//     同一地区的OpenSpan之间的边界叫做内部边界。
+
 	rcAssert(ctx);
 	
 	const int w = chf.width;
@@ -890,7 +891,6 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 	cset.borderSize = chf.borderSize;
 	cset.maxError = maxError;
 	
-	// 看来地区数量不能超过8啊。
 	int maxContours = rcMax((int)chf.maxRegions, 8);
 	cset.conts = (rcContour*)rcAlloc(sizeof(rcContour)*maxContours, RC_ALLOC_PERM);
 	if (!cset.conts)
@@ -918,7 +918,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				unsigned char res = 0;
 				const rcCompactSpan& s = chf.spans[i];
 
-				//没有地区ID，略过
+				//没有地区边界（或者都是内部边界）略过。
 				if (!chf.spans[i].reg || (chf.spans[i].reg & RC_BORDER_REG))
 				{
 					flags[i] = 0;
@@ -970,7 +970,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 					continue;
 				}
 
-				//没有地区ID，略过
+				//没有地区ID或者是BORDER地区，略过
 				const unsigned short reg = chf.spans[i].reg;
 				if (!reg || (reg & RC_BORDER_REG))
 					continue;

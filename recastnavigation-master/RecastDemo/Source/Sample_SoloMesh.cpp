@@ -511,6 +511,7 @@ bool Sample_SoloMesh::handleBuild()
 	}
 	// 生成开放的紧凑型高度场。并标记相连接的邻接点信息。
 	// 邻接OpenSpan就是轴邻居OpenSpan串中的第一个满足“能穿过（不碰头），能跨过”条件的OpenSpan。
+	// 注：这里生成的OpenSpan都是可行走的。
 	if (!rcBuildCompactHeightfield(m_ctx, m_cfg.walkableHeight, m_cfg.walkableClimb, *m_solid, *m_chf))
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not build compact data.");
@@ -525,6 +526,7 @@ bool Sample_SoloMesh::handleBuild()
 		
 	// Erode the walkable area by agent radius.
 	// 根据agent的半径，收紧可走区域。
+	// 注：经过这一步，有一些OpenSpan变成不可行走了。
 	if (!rcErodeWalkableArea(m_ctx, m_cfg.walkableRadius, *m_chf))
 	{
 		m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not erode.");
@@ -574,6 +576,7 @@ bool Sample_SoloMesh::handleBuild()
 		}
 		
 		// Partition the walkable surface into simple regions without holes.
+		// 不可行走的OpenSpan是没有地区ID的。
 		if (!rcBuildRegions(m_ctx, *m_chf, 0, m_cfg.minRegionArea, m_cfg.mergeRegionArea))
 		{
 			m_ctx->log(RC_LOG_ERROR, "buildNavigation: Could not build watershed regions.");

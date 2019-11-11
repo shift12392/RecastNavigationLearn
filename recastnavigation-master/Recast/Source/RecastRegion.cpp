@@ -407,12 +407,13 @@ static void expandRegions(int maxIter, unsigned short level,
 		int failed = 0;
 		dirtyEntries.clear();
 		
+		//帮没有地区ID的OpenSpan的找到其4个轴邻居中离得最近的，有地区ID的邻居的地区ID。
 		for (int j = 0; j < stack.size(); j++)
 		{
 			int x = stack[j].x;
 			int y = stack[j].y;
 			int i = stack[j].index;          //OpenSpan的索引
-			if (i < 0)
+			if (i < 0)         //已经有地区ID的OpenSpan略过
 			{
 				failed++;
 				continue;
@@ -450,12 +451,14 @@ static void expandRegions(int maxIter, unsigned short level,
 		}
 		
 		// Copy entries that differ between src and dst to keep them in sync.
+		// 在这里，设置那些找到的没有地区ID的OpenSpan。
 		for (int i = 0; i < dirtyEntries.size(); i++) {
 			int idx = dirtyEntries[i].index;
 			srcReg[idx] = dirtyEntries[i].region;
 			srcDist[idx] = dirtyEntries[i].distance2;
 		}
 		
+		//都已经有了地区ID，或者没有有地区ID的轴邻居，则退出。
 		if (failed == stack.size())
 			break;
 		
@@ -1597,7 +1600,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 	while (level > 0)
 	{
 		level = level >= 2 ? level-2 : 0;    //循环减2，直到为0。
-		sId = (sId+1) & (NB_STACKS-1);       //sId从0到(NB_STACKS-1)循环。
+		sId = (sId+1) & (NB_STACKS-1);       //sId：从0到(NB_STACKS-1)循环。
 
 //		ctx->startTimer(RC_TIMER_DIVIDE_TO_LEVELS);
 
@@ -1611,7 +1614,9 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 		{
 			rcScopedTimer timerExpand(ctx, RC_TIMER_BUILD_REGIONS_EXPAND);
 
-			// Expand current regions until no empty connected cells found.  扩展当前区域，直到找不到空的连接cells。
+			// Expand current regions until no empty connected cells found. 
+			// 插入水中越深，则已经插入水中的集水盆地的范围越大。
+			// 帮没有地区ID的OpenSpan的找到其4个轴邻居中离得最近的，有地区ID的邻居的地区ID。然后设置这个找到的地区ID。
 			expandRegions(expandIters, level, chf, srcReg, srcDist, lvlStacks[sId], false);
 		}
 		
@@ -1619,6 +1624,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 			rcScopedTimer timerFloor(ctx, RC_TIMER_BUILD_REGIONS_FLOOD);
 
 			// Mark new regions with IDs.
+			// 如果一个新的集水盆地刚插入水中，则给这个集水盆地中已经浸水的OpenSpan设置新的regionId。
 			for (int j = 0; j<lvlStacks[sId].size(); j++)
 			{
 				LevelStackEntry current = lvlStacks[sId][j];
@@ -1643,6 +1649,7 @@ bool rcBuildRegions(rcContext* ctx, rcCompactHeightfield& chf,
 	}
 	
 	// Expand current regions until no empty connected cells found. 
+	// 经过上面的处理，可能有漏网之鱼，这里检查每一个OpenSpan，如果发现没有地区ID，且可行走的OpenSpan，对它们进行扩展。
 	expandRegions(expandIters*8, 0, chf, srcReg, srcDist, stack, true);
 	
 	ctx->stopTimer(RC_TIMER_BUILD_REGIONS_WATERSHED);
