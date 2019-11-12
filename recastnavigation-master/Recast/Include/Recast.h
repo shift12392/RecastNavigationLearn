@@ -575,7 +575,7 @@ void rcFreePolyMeshDetail(rcPolyMeshDetail* dmesh);
 /// region and its spans are considered unwalkable.
 /// (Used during the region and contour build process.)
 /// @see rcCompactSpan::reg
-static const unsigned short RC_BORDER_REG = 0x8000;
+static const unsigned short RC_BORDER_REG = 0x8000;    //1000 0000 0000 0000
 
 /// Polygon touches multiple regions.
 /// If a polygon has this region ID it was merged with or created

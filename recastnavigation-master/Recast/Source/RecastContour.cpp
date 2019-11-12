@@ -240,7 +240,11 @@ static float distancePtSeg(const int x, const int z,
 static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 							const float maxError, const int maxEdgeLen, const int buildFlags)
 {
+	//注：有两种类型的轮廓。第一种是，两个相邻的地区都有地区ID（包括Border地区），则这种轮廓称之为portals（入口）。
+	//第二种，是一个有地区ID的地区和“空地”相邻。“空地”没有地区ID。
+
 	// Add initial points.
+	// 检查这条轮廓，是否是portals。
 	bool hasConnections = false;
 	for (int i = 0; i < points.size(); i += 4)
 	{
@@ -251,6 +255,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		}
 	}
 	
+	// 如果这条地区轮廓是否portals，则简化轮廓很简单，只保留一些关键点。
 	if (hasConnections)
 	{
 		// The contour has some portals to other regions.
@@ -258,26 +263,27 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		for (int i = 0, ni = points.size()/4; i < ni; ++i)
 		{
 			int ii = (i+1) % ni;
-			const bool differentRegs = (points[i*4+3] & RC_CONTOUR_REG_MASK) != (points[ii*4+3] & RC_CONTOUR_REG_MASK);    // 判断Regon ID是否相同。
+			const bool differentRegs = (points[i*4+3] & RC_CONTOUR_REG_MASK) != (points[ii*4+3] & RC_CONTOUR_REG_MASK);    // 判断邻接OpenSpan的Regon ID是否相同。
 			const bool areaBorders = (points[i*4+3] & RC_AREA_BORDER) != (points[ii*4+3] & RC_AREA_BORDER);                // 这个轮廓点的两边的OpenSpan的可行走标记不同。
 			if (differentRegs || areaBorders)        
 			{
-				// 1、不在同一Regon ID的轮廓点留下。
+				// 1、两个邻接OpenSpan的Regon ID不一样的轮廓点留下。
 				// 2、是同一Regon ID，但是两个轮廓点的可行走标记不一样的留下。
 
 				simplified.push(points[i*4+0]);
 				simplified.push(points[i*4+1]);
 				simplified.push(points[i*4+2]);
-				simplified.push(i);
+				simplified.push(i);                          //注：这个是point在points数组的索引
 			}
 		}
 	}
 	
 	if (simplified.size() == 0)
 	{
+		// 没有连接，说明这个地区孤零零的。
 		// If there is no connections at all,
-		// create some initial points for the simplification process.
-		// Find lower-left and upper-right vertices of the contour.
+		// create some initial points for the simplification process.   如果根本没有任何连接，请为这个简化过程创建一些初始点。
+		// Find lower-left and upper-right vertices of the contour.     查找轮廓的左上角和右下角的点。（注：右手坐标系，x-z平面坐标和windows桌面坐标一样。）
 		int llx = points[0];
 		int lly = points[1];
 		int llz = points[2];
@@ -291,14 +297,14 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			int x = points[i+0];
 			int y = points[i+1];
 			int z = points[i+2];
-			if (x < llx || (x == llx && z < llz))
+			if (x < llx || (x == llx && z < llz))    //找到最小的x和z的点
 			{
 				llx = x;
 				lly = y;
 				llz = z;
 				lli = i/4;
 			}
-			if (x > urx || (x == urx && z > urz))
+			if (x > urx || (x == urx && z > urz))   //找到最大的x和z的点
 			{
 				urx = x;
 				ury = y;
@@ -317,12 +323,15 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		simplified.push(uri);
 	}
 	
+	// 如果是第二种轮廓类型，分为两步
+	// 第一步：使用Douglas-Peucker算法，使用maxError参数决定将哪些顶点丢弃以获得简化的线段。
+
 	// Add points until all raw points are within
-	// error tolerance to the simplified shape.
+	// error tolerance to the simplified shape.            添加点，直到所有原始点都在简化形状的误差范围内。
 	const int pn = points.size()/4;
 	for (int i = 0; i < simplified.size()/4; )
 	{
-		int ii = (i+1) % (simplified.size()/4);
+		int ii = (i+1) % (simplified.size()/4);        //环形循环，i的下一个
 		
 		int ax = simplified[i*4+0];
 		int az = simplified[i*4+2];
@@ -340,8 +349,8 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		// Traverse the segment in lexilogical order so that the
 		// max deviation is calculated similarly when traversing
 		// opposite segments.
-		if (bx > ax || (bx == ax && bz > az))
-		{
+		if (bx > ax || (bx == ax && bz > az))   
+		{//下一个关键点在右边或者是上面。
 			cinc = 1;
 			ci = (ai+cinc) % pn;
 			endi = bi;
@@ -355,10 +364,11 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			rcSwap(az, bz);
 		}
 		
-		// Tessellate only outer edges or edges between areas.
+		// Tessellate only outer edges or edges between areas.   仅对外部边缘或区域之间的边缘进行镶嵌。
 		if ((points[ci*4+3] & RC_CONTOUR_REG_MASK) == 0 ||
 			(points[ci*4+3] & RC_AREA_BORDER))
 		{
+			//找到一个最远点
 			while (ci != endi)
 			{
 				float d = distancePtSeg(points[ci*4+0], points[ci*4+2], ax, az, bx, bz);
@@ -373,13 +383,13 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		
 		
 		// If the max deviation is larger than accepted error,
-		// add new point, else continue to next segment.
+		// add new point, else continue to next segment.           如果最大偏差大于可接受的误差，则添加新点，否则继续下一个分段。
 		if (maxi != -1 && maxd > (maxError*maxError))
 		{
-			// Add space for the new point.
+			// Add space for the new point.  为新点添加空间。
 			simplified.resize(simplified.size()+4);
 			const int n = simplified.size()/4;
-			for (int j = n-1; j > i; --j)
+			for (int j = n-1; j > i; --j)    //向后移动
 			{
 				simplified[j*4+0] = simplified[(j-1)*4+0];
 				simplified[j*4+1] = simplified[(j-1)*4+1];
@@ -391,6 +401,8 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			simplified[(i+1)*4+1] = points[maxi*4+1];
 			simplified[(i+1)*4+2] = points[maxi*4+2];
 			simplified[(i+1)*4+3] = maxi;
+
+			//注意这里没有改变i，所以对新的再次执行上面的操作。
 		}
 		else
 		{
@@ -918,7 +930,7 @@ bool rcBuildContours(rcContext* ctx, rcCompactHeightfield& chf,
 				unsigned char res = 0;
 				const rcCompactSpan& s = chf.spans[i];
 
-				//没有地区边界（或者都是内部边界）略过。
+				//没有地区ID或者是BORDER地区，略过
 				if (!chf.spans[i].reg || (chf.spans[i].reg & RC_BORDER_REG))
 				{
 					flags[i] = 0;

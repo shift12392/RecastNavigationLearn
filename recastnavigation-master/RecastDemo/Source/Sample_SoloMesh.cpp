@@ -389,7 +389,7 @@ bool Sample_SoloMesh::handleBuild()
 	const int ntris = m_geom->getMesh()->getTriCount();
 	
 	//
-	// Step 1. Initialize build config.
+	// Step 1. Initialize build config.  （注：Recast使用右手坐标系，x-z平面坐标和windows桌面坐标一样。）
 	//
 	
 	// Init build configuration from GUI
