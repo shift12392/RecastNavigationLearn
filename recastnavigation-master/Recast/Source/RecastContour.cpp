@@ -240,11 +240,11 @@ static float distancePtSeg(const int x, const int z,
 static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 							const float maxError, const int maxEdgeLen, const int buildFlags)
 {
-	//注：有两种类型的轮廓。第一种是，两个相邻的地区都有地区ID（包括Border地区），则这种轮廓称之为portals（入口）。
-	//第二种，是一个有地区ID的地区和“空地”相邻。“空地”没有地区ID。
+	//注：有两种类型的轮廓。第一种是，一个地区和其他地区（指有地区ID或者Border地区）相邻，则这种轮廓称之为portals（入口）。
+	//第二种，一个地区只和“空”地区相邻，则这个地区孤零零的。“空”地区指没有地区ID的那些OpenSpan组成的区域。
 
 	// Add initial points.
-	// 检查这条轮廓，是否是portals。
+	// 检查这条轮廓，是否有portals。
 	bool hasConnections = false;
 	for (int i = 0; i < points.size(); i += 4)
 	{
@@ -255,7 +255,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		}
 	}
 	
-	// 如果这条地区轮廓是否portals，则简化轮廓很简单，只保留一些关键点。
+	// 第一种情况：如果这条地区轮廓有portals，则简化轮廓很简单，只保留一些关键点。
 	if (hasConnections)
 	{
 		// The contour has some portals to other regions.
@@ -278,9 +278,9 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		}
 	}
 	
+	// 如果没有得到简化点，则增加两个初始点。
 	if (simplified.size() == 0)
 	{
-		// 没有连接，说明这个地区孤零零的。
 		// If there is no connections at all,
 		// create some initial points for the simplification process.   如果根本没有任何连接，请为这个简化过程创建一些初始点。
 		// Find lower-left and upper-right vertices of the contour.     查找轮廓的左上角和右下角的点。（注：右手坐标系，x-z平面坐标和windows桌面坐标一样。）
@@ -323,7 +323,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 		simplified.push(uri);
 	}
 	
-	// 如果是第二种轮廓类型，分为两步
+	// 再次简化顶点
 	// 第一步：使用Douglas-Peucker算法，使用maxError参数决定将哪些顶点丢弃以获得简化的线段。
 
 	// Add points until all raw points are within
@@ -402,7 +402,7 @@ static void simplifyContour(rcIntArray& points, rcIntArray& simplified,
 			simplified[(i+1)*4+2] = points[maxi*4+2];
 			simplified[(i+1)*4+3] = maxi;
 
-			//注意这里没有改变i，所以对新的再次执行上面的操作。
+			//注意这里没有改变i，所以再次循环执行一次。
 		}
 		else
 		{
